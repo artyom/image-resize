@@ -71,14 +71,17 @@ func do(par params) error {
 	if err != nil {
 		return err
 	}
-	// TODO handle noupscale case here
-	//
 
 	img, _, err := image.Decode(io.LimitReader(io.MultiReader(headBuf, f), maxFileSize))
 	if err != nil {
 		return err
 	}
 	var outImg image.Image
+	if (cfg.Width <= width && cfg.Height <= height) && (tr.MaxWidth > 0 || tr.MaxHeight > 0) {
+		// noupscale case
+		outImg = img
+		goto saveOutput
+	}
 	switch img.(type) {
 	case *image.YCbCr, *image.RGBA, *image.NRGBA, *image.Gray:
 		outImg, err = resize(img, width, height, rez.NewLanczosFilter(3))
@@ -88,6 +91,7 @@ func do(par params) error {
 	if err != nil {
 		return err
 	}
+saveOutput:
 	of, err := os.Create(par.Output)
 	if err != nil {
 		return err
