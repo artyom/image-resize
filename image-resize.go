@@ -17,6 +17,7 @@ import (
 
 	"github.com/artyom/autoflags"
 	"github.com/bamiaux/rez"
+	"github.com/soniakeys/quant/mean"
 	"golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/tiff"
@@ -99,7 +100,12 @@ saveOutput:
 	defer of.Close()
 	switch strings.ToLower(filepath.Ext(par.Output)) {
 	case ".gif":
-		err = gif.Encode(of, outImg, nil)
+		gifOpts := &gif.Options{NumColors: 256, Quantizer: mean.Quantizer(256)}
+		if pImg, ok := img.(*image.Paletted); ok {
+			gifOpts.NumColors = len(pImg.Palette)
+			gifOpts.Quantizer = mean.Quantizer(gifOpts.NumColors)
+		}
+		err = gif.Encode(of, outImg, gifOpts)
 	case ".png":
 		enc := png.Encoder{CompressionLevel: png.BestCompression}
 		err = enc.Encode(of, outImg)
