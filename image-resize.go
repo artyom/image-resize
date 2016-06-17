@@ -42,6 +42,7 @@ type params struct {
 	MaxHeight int    `flag:"maxheight,max. allowed height"`
 	Input     string `flag:"input,input file"`
 	Output    string `flag:"output,output file"`
+	Square    bool   `flag:"square,crop image to square by smaller side before processing"`
 
 	JpegQuality int `flag:"q,jpeg quality (1-100)"`
 }
@@ -76,6 +77,25 @@ func do(par params) error {
 	img, _, err := image.Decode(io.LimitReader(io.MultiReader(headBuf, f), maxFileSize))
 	if err != nil {
 		return err
+	}
+	if par.Square {
+		type subImager interface {
+			SubImage(r image.Rectangle) image.Image
+		}
+		si, ok := img.(subImager)
+		if !ok {
+			return errors.New("cannot crop image")
+		}
+		minSide := cfg.Width
+		if cfg.Height < minSide {
+			minSide = cfg.Height
+		}
+		x0, y0 := (cfg.Width-minSide)/2, (cfg.Height-minSide)/2
+		img = si.SubImage(image.Rect(x0, y0, x0+minSide, y0+minSide))
+		width, height, err = tr.newDimensions(minSide, minSide)
+		if err != nil {
+			return err
+		}
 	}
 	var outImg image.Image
 	if (cfg.Width <= width && cfg.Height <= height) && (tr.MaxWidth > 0 || tr.MaxHeight > 0) {
