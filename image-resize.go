@@ -43,6 +43,7 @@ type params struct {
 	Input     string `flag:"input,input file"`
 	Output    string `flag:"output,output file"`
 	Square    bool   `flag:"square,crop image to square by smaller side before processing"`
+	NoFill    bool   `flag:"nofill,do not draw transparent inputs over white for non-png outputs"`
 
 	JpegQuality int `flag:"q,jpeg quality (1-100)"`
 }
@@ -97,6 +98,7 @@ func do(par params) error {
 			return err
 		}
 	}
+	outSuffix := strings.ToLower(filepath.Ext(par.Output))
 	var outImg image.Image
 	if (cfg.Width <= width && cfg.Height <= height) && (tr.MaxWidth > 0 || tr.MaxHeight > 0) {
 		// noupscale case
@@ -113,12 +115,18 @@ func do(par params) error {
 		return err
 	}
 saveOutput:
+	if op, ok := outImg.(opaquer); ok && !par.NoFill && !op.Opaque() && outSuffix != ".png" {
+		newOut := image.NewRGBA(outImg.Bounds())
+		draw.Copy(newOut, image.Point{}, image.White, newOut.Bounds(), draw.Src, nil)
+		draw.Copy(newOut, image.Point{}, outImg, newOut.Bounds(), draw.Over, nil)
+		outImg = newOut
+	}
 	of, err := os.Create(par.Output)
 	if err != nil {
 		return err
 	}
 	defer of.Close()
-	switch strings.ToLower(filepath.Ext(par.Output)) {
+	switch outSuffix {
 	case ".gif":
 		gifOpts := &gif.Options{NumColors: 256, Quantizer: mean.Quantizer(256)}
 		if pImg, ok := img.(*image.Paletted); ok {
@@ -243,3 +251,7 @@ const (
 	pixelLimit  = 50 * 1000000
 	maxFileSize = 50 << 20
 )
+
+type opaquer interface {
+	Opaque() bool
+}
