@@ -11,12 +11,15 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/artyom/autoflags"
 	"github.com/bamiaux/rez"
+	"github.com/disintegration/gift"
+	"github.com/rwcarlsen/goexif/exif"
 	"github.com/soniakeys/quant/mean"
 	"golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
@@ -61,9 +64,10 @@ func do(par params) error {
 		return err
 	}
 	defer f.Close()
+
 	headBuf := new(bytes.Buffer)
 	teeReader := io.TeeReader(f, headBuf)
-	cfg, _, err := image.DecodeConfig(teeReader)
+	cfg, kind, err := image.DecodeConfig(teeReader)
 	if err != nil {
 		return err
 	}
@@ -75,9 +79,39 @@ func do(par params) error {
 		return err
 	}
 
-	img, _, err := image.Decode(io.LimitReader(io.MultiReader(headBuf, f), maxFileSize))
+	imageDataReader := io.MultiReader(headBuf, f)
+	exifChan := make(chan exifData, 1)
+	if kind == "jpeg" {
+		prd, pwr := io.Pipe()
+		imageDataReader = io.TeeReader(imageDataReader, pwr)
+		go func() {
+			defer io.Copy(ioutil.Discard, prd)
+			data, err := exif.Decode(prd)
+			exifChan <- exifData{data, err}
+		}()
+	}
+
+	img, _, err := image.Decode(io.LimitReader(imageDataReader, maxFileSize))
 	if err != nil {
 		return err
+	}
+
+	var rotatefunc func(image.Image) image.Image
+	var swapWH bool
+	if kind == "jpeg" {
+		rotatefunc, swapWH = useExifOrientation(<-exifChan)
+	}
+	if swapWH {
+		par.Width, par.Height = par.Height, par.Width
+		par.MaxWidth, par.MaxHeight = par.MaxHeight, par.MaxWidth
+		tr, err = newTransform(par.Width, par.Height, par.MaxWidth, par.MaxHeight)
+		if err != nil {
+			return err
+		}
+		width, height, err = tr.newDimensions(cfg.Width, cfg.Height)
+		if err != nil {
+			return err
+		}
 	}
 	if par.Square {
 		type subImager interface {
@@ -120,6 +154,9 @@ saveOutput:
 		draw.Copy(newOut, image.Point{}, image.White, newOut.Bounds(), draw.Src, nil)
 		draw.Copy(newOut, image.Point{}, outImg, newOut.Bounds(), draw.Over, nil)
 		outImg = newOut
+	}
+	if rotatefunc != nil {
+		outImg = rotatefunc(outImg)
 	}
 	of, err := os.Create(par.Output)
 	if err != nil {
@@ -254,4 +291,45 @@ const (
 
 type opaquer interface {
 	Opaque() bool
+}
+
+type exifData struct {
+	exif *exif.Exif
+	err  error
+}
+
+func useExifOrientation(ed exifData) (rotatefunc func(image.Image) image.Image, swapWH bool) {
+	if ed.err != nil || ed.exif == nil {
+		return
+	}
+	o, err := ed.exif.Get(exif.Orientation)
+	if err != nil || o == nil || len(o.Val) != 2 {
+		return
+	}
+	switch x := o.Val[1]; x {
+	case 3: // 180º
+		return rotate180, false
+	case 6: // 90ºCCW
+		return rotate90ccw, true
+	case 8: // 90ºCW
+		return rotate90cw, true
+	}
+	return
+}
+
+func rotate90ccw(src image.Image) image.Image { return rotate(src, gift.Rotate270()) }
+func rotate90cw(src image.Image) image.Image  { return rotate(src, gift.Rotate90()) }
+func rotate180(src image.Image) image.Image   { return rotate(src, gift.Rotate180()) }
+
+func rotate(src image.Image, filter gift.Filter) image.Image {
+	g := gift.New(filter)
+	var dst draw.Image
+	switch src.(type) {
+	case *image.Gray:
+		dst = image.NewGray(g.Bounds(src.Bounds()))
+	default:
+		dst = image.NewRGBA(g.Bounds(src.Bounds()))
+	}
+	g.Draw(dst, src)
+	return dst
 }
