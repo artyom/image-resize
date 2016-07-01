@@ -79,7 +79,7 @@ func do(par params) error {
 		return err
 	}
 
-	imageDataReader := io.MultiReader(headBuf, f)
+	imageDataReader := io.LimitReader(io.MultiReader(headBuf, f), maxFileSize)
 	exifChan := make(chan exifData, 1)
 	if kind == "jpeg" {
 		prd, pwr := io.Pipe()
@@ -91,7 +91,7 @@ func do(par params) error {
 		}()
 	}
 
-	img, _, err := image.Decode(io.LimitReader(imageDataReader, maxFileSize))
+	img, _, err := image.Decode(imageDataReader)
 	if err != nil {
 		return err
 	}
