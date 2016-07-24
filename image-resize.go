@@ -307,13 +307,15 @@ func useExifOrientation(ed exifData) (rotatefunc func(image.Image) image.Image, 
 	if err != nil || o == nil || len(o.Val) != 2 {
 		return
 	}
-	switch x := o.Val[1]; x {
-	case 3: // 180º
-		return rotate180, false
-	case 6: // 90ºCCW
-		return rotate90ccw, true
-	case 8: // 90ºCW
-		return rotate90cw, true
+	for _, x := range o.Val {
+		switch x {
+		case 3: // 180º
+			return rotate180, false
+		case 6: // 90ºCCW
+			return rotate90ccw, true
+		case 8: // 90ºCW
+			return rotate90cw, true
+		}
 	}
 	return
 }
