@@ -86,7 +86,12 @@ func do(par params) error {
 		defer pwr.Close()
 		imageDataReader = io.TeeReader(imageDataReader, pwr)
 		go func() {
-			defer io.Copy(ioutil.Discard, prd)
+			defer func() {
+				if p := recover(); p != nil {
+					fmt.Fprintln(os.Stderr, "exif decode failed")
+				}
+				io.Copy(ioutil.Discard, prd)
+			}()
 			data, err := exif.Decode(prd)
 			exifChan <- exifData{data, err}
 		}()
@@ -100,7 +105,12 @@ func do(par params) error {
 	var rotatefunc func(image.Image) image.Image
 	var swapWH bool
 	if kind == "jpeg" {
-		rotatefunc, swapWH = useExifOrientation(<-exifChan)
+		select {
+		case ed := <-exifChan:
+			rotatefunc, swapWH = useExifOrientation(ed)
+		default:
+			fmt.Fprintln(os.Stderr, "exif decode failed/stuck")
+		}
 	}
 	if swapWH {
 		par.Width, par.Height = par.Height, par.Width
