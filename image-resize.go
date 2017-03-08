@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/artyom/autoflags"
+	"github.com/bamiaux/rez"
 	"github.com/disintegration/gift"
 	"github.com/rwcarlsen/goexif/exif"
 	"github.com/soniakeys/quant/mean"
@@ -149,7 +150,15 @@ func do(par params) error {
 		outImg = img
 		goto saveOutput
 	}
-	outImg = resize(img, width, height)
+	switch img.(type) {
+	case *image.YCbCr, *image.RGBA, *image.NRGBA, *image.Gray:
+		outImg, err = resize(img, width, height, rez.NewLanczosFilter(3))
+	default:
+		outImg, err = resizeFallback(img, width, height)
+	}
+	if err != nil {
+		return err
+	}
 saveOutput:
 	if op, ok := outImg.(opaquer); ok && !par.NoFill && !op.Opaque() && outSuffix != ".png" {
 		newOut := image.NewRGBA(outImg.Bounds())
@@ -261,10 +270,29 @@ func newTransform(width, height, maxWidth, maxHeight int) (transform, error) {
 	return tr, nil
 }
 
-func resize(inImg image.Image, width, height int) image.Image {
+func resize(inImg image.Image, width, height int, algo rez.Filter) (image.Image, error) {
+	var outImg image.Image
+	rect := image.Rect(0, 0, width, height)
+	switch inImg.(type) {
+	case *image.Gray:
+		outImg = image.NewGray(rect)
+	case *image.RGBA:
+		outImg = image.NewRGBA(rect)
+	case *image.NRGBA:
+		outImg = image.NewNRGBA(rect)
+	default:
+		outImg = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
+	}
+	if err := rez.Convert(outImg, inImg, algo); err != nil {
+		return nil, err
+	}
+	return outImg, nil
+}
+
+func resizeFallback(inImg image.Image, width, height int) (image.Image, error) {
 	outImg := image.NewRGBA(image.Rect(0, 0, width, height))
 	draw.CatmullRom.Scale(outImg, outImg.Bounds(), inImg, inImg.Bounds(), draw.Src, nil)
-	return outImg
+	return outImg, nil
 }
 
 const (
