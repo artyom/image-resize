@@ -4,6 +4,9 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/png"
+	"os"
+	"reflect"
 	"testing"
 )
 
@@ -27,11 +30,11 @@ func TestGIFT(t *testing.T) {
 		t.Error("unexpected parallelization property")
 	}
 	g.SetParallelization(true)
-	if g.Parallelization() != true {
+	if !g.Parallelization() {
 		t.Error("unexpected parallelization property")
 	}
 	g.SetParallelization(false)
-	if g.Parallelization() != false {
+	if g.Parallelization() {
 		t.Error("unexpected parallelization property")
 	}
 
@@ -450,43 +453,43 @@ func TestSubImage(t *testing.T) {
 
 func TestDraw(t *testing.T) {
 	filters := [][]Filter{
-		[]Filter{},
-		[]Filter{Resize(2, 2, NearestNeighborResampling), Crop(image.Rect(0, 0, 1, 1))},
-		[]Filter{Resize(2, 2, NearestNeighborResampling), CropToSize(1, 1, CenterAnchor)},
-		[]Filter{FlipHorizontal()},
-		[]Filter{FlipVertical()},
-		[]Filter{Resize(2, 2, NearestNeighborResampling), Resize(1, 1, NearestNeighborResampling)},
-		[]Filter{Resize(2, 2, NearestNeighborResampling), ResizeToFit(1, 1, NearestNeighborResampling)},
-		[]Filter{Resize(2, 2, NearestNeighborResampling), ResizeToFill(1, 1, NearestNeighborResampling, CenterAnchor)},
-		[]Filter{Rotate(45, color.NRGBA{0, 0, 0, 0}, NearestNeighborInterpolation)},
-		[]Filter{Rotate90()},
-		[]Filter{Rotate180()},
-		[]Filter{Rotate270()},
-		[]Filter{Transpose()},
-		[]Filter{Transverse()},
-		[]Filter{Brightness(10)},
-		[]Filter{ColorBalance(10, 10, 10)},
-		[]Filter{ColorFunc(func(r0, g0, b0, a0 float32) (r, g, b, a float32) { return 1, 1, 1, 1 })},
-		[]Filter{Colorize(240, 50, 100)},
-		[]Filter{ColorspaceLinearToSRGB()},
-		[]Filter{ColorspaceSRGBToLinear()},
-		[]Filter{Contrast(10)},
-		[]Filter{Convolution([]float32{-1, -1, 0, -1, 1, 1, 0, 1, 1}, false, false, false, 0.0)},
-		[]Filter{Gamma(1.1)},
-		[]Filter{GaussianBlur(3)},
-		[]Filter{Grayscale()},
-		[]Filter{Hue(90)},
-		[]Filter{Invert()},
-		[]Filter{Maximum(3, true)},
-		[]Filter{Minimum(3, true)},
-		[]Filter{Mean(3, true)},
-		[]Filter{Median(3, true)},
-		[]Filter{Pixelate(3)},
-		[]Filter{Saturation(10)},
-		[]Filter{Sepia(10)},
-		[]Filter{Sigmoid(0.5, 5)},
-		[]Filter{Sobel()},
-		[]Filter{UnsharpMask(1.0, 1.5, 0.001)},
+		{},
+		{Resize(2, 2, NearestNeighborResampling), Crop(image.Rect(0, 0, 1, 1))},
+		{Resize(2, 2, NearestNeighborResampling), CropToSize(1, 1, CenterAnchor)},
+		{FlipHorizontal()},
+		{FlipVertical()},
+		{Resize(2, 2, NearestNeighborResampling), Resize(1, 1, NearestNeighborResampling)},
+		{Resize(2, 2, NearestNeighborResampling), ResizeToFit(1, 1, NearestNeighborResampling)},
+		{Resize(2, 2, NearestNeighborResampling), ResizeToFill(1, 1, NearestNeighborResampling, CenterAnchor)},
+		{Rotate(45, color.NRGBA{0, 0, 0, 0}, NearestNeighborInterpolation)},
+		{Rotate90()},
+		{Rotate180()},
+		{Rotate270()},
+		{Transpose()},
+		{Transverse()},
+		{Brightness(10)},
+		{ColorBalance(10, 10, 10)},
+		{ColorFunc(func(r0, g0, b0, a0 float32) (r, g, b, a float32) { return 1, 1, 1, 1 })},
+		{Colorize(240, 50, 100)},
+		{ColorspaceLinearToSRGB()},
+		{ColorspaceSRGBToLinear()},
+		{Contrast(10)},
+		{Convolution([]float32{-1, -1, 0, -1, 1, 1, 0, 1, 1}, false, false, false, 0)},
+		{Gamma(1.1)},
+		{GaussianBlur(3)},
+		{Grayscale()},
+		{Hue(90)},
+		{Invert()},
+		{Maximum(3, true)},
+		{Minimum(3, true)},
+		{Mean(3, true)},
+		{Median(3, true)},
+		{Pixelate(3)},
+		{Saturation(10)},
+		{Sepia(10)},
+		{Sigmoid(0.5, 5)},
+		{Sobel()},
+		{UnsharpMask(1, 1.5, 0.001)},
 	}
 
 	for i, f := range filters {
@@ -511,6 +514,83 @@ func TestDraw(t *testing.T) {
 					t.Errorf("test draw pos failed: %d %#v %#v", i, f, dst.Pix)
 				}
 			}
+		}
+	}
+}
+
+func loadImage(t *testing.T, filename string) image.Image {
+	f, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("os.Open (%q) failed: %v", filename, err)
+	}
+	img, _, err := image.Decode(f)
+	if err != nil {
+		t.Fatalf("image.Decode (%q) failed: %v", filename, err)
+	}
+	return img
+}
+
+func loadImageNRGBA(t *testing.T, filename string) *image.NRGBA {
+	img := loadImage(t, filename)
+	nrgba := image.NewNRGBA(img.Bounds())
+	New().Draw(nrgba, img)
+	return nrgba
+}
+
+func TestGolden(t *testing.T) {
+	filters := map[string]Filter{
+		"resize":             Resize(100, 0, LanczosResampling),
+		"crop_to_size":       CropToSize(100, 100, LeftAnchor),
+		"rotate_180":         Rotate180(),
+		"rotate_30":          Rotate(30, color.Transparent, CubicInterpolation),
+		"brightness_increse": Brightness(30),
+		"brightness_decrese": Brightness(-30),
+		"contrast_increse":   Contrast(30),
+		"contrast_decrese":   Contrast(-30),
+		"saturation_increse": Saturation(50),
+		"saturation_decrese": Saturation(-50),
+		"gamma_1.5":          Gamma(1.5),
+		"gamma_0.5":          Gamma(0.5),
+		"gaussian_blur":      GaussianBlur(1),
+		"unsharp_mask":       UnsharpMask(1, 1, 0),
+		"sigmoid":            Sigmoid(0.5, 7),
+		"pixelate":           Pixelate(5),
+		"colorize":           Colorize(240, 50, 100),
+		"grayscale":          Grayscale(),
+		"sepia":              Sepia(100),
+		"invert":             Invert(),
+		"mean":               Mean(5, true),
+		"median":             Median(5, true),
+		"minimum":            Minimum(5, true),
+		"maximum":            Maximum(5, true),
+		"hue_rotate":         Hue(45),
+		"color_balance":      ColorBalance(10, -10, -10),
+		"color_func": ColorFunc(
+			func(r0, g0, b0, a0 float32) (r, g, b, a float32) {
+				r = 1 - r0
+				g = g0 + 0.1
+				b = 0
+				a = a0
+				return
+			},
+		),
+		"convolution_emboss": Convolution(
+			[]float32{
+				-1, -1, 0,
+				-1, 1, 1,
+				0, 1, 1,
+			},
+			false, false, false, 0,
+		),
+	}
+	src := loadImage(t, "testdata/src.png")
+	for name, filter := range filters {
+		g := New(filter)
+		dst := image.NewNRGBA(g.Bounds(src.Bounds()))
+		g.Draw(dst, src)
+		want := loadImageNRGBA(t, "testdata/dst_"+name+".png")
+		if !reflect.DeepEqual(dst, want) {
+			t.Errorf("resulting image differs from golden: %s", name)
 		}
 	}
 }
