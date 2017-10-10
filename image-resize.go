@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"image"
-	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -15,6 +14,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/artyom/image-resize/internal/gif"
 
 	"github.com/artyom/autoflags"
 	"github.com/bamiaux/rez"
