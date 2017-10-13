@@ -150,7 +150,7 @@ func (b *blockReader) Read(p []byte) (int, error) {
 }
 
 // decode reads a GIF image from r and stores the result in d.
-func (d *decoder) decode(r io.Reader, allFrames, configOnly bool) error {
+func (d *decoder) decode(r io.Reader, configOnly, keepAllFrames bool) error {
 	// Add buffering if r does not provide ReadByte.
 	if rr, ok := r.(reader); ok {
 		d.r = rr
@@ -224,8 +224,8 @@ func (d *decoder) decode(r io.Reader, allFrames, configOnly bool) error {
 			// A wonderfully Go-like piece of magic.
 			br := &blockReader{r: d.r}
 			lzwr := lzw.NewReader(br, lzw.LSB, int(litWidth))
-			defer lzwr.Close()
 			if err = readFull(lzwr, m.Pix); err != nil {
+				lzwr.Close()
 				if err != io.ErrUnexpectedEOF {
 					return fmt.Errorf("gif: reading image data: %v", err)
 				}
@@ -242,7 +242,9 @@ func (d *decoder) decode(r io.Reader, allFrames, configOnly bool) error {
 			// before the LZW decoder saw an explicit end code), provided that
 			// the io.ReadFull call above successfully read len(m.Pix) bytes.
 			// See https://golang.org/issue/9856 for an example GIF.
-			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
+			n, err := lzwr.Read(d.tmp[:1])
+			lzwr.Close()
+			if n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
 				if err != nil {
 					return fmt.Errorf("gif: reading image data: %v", err)
 				}
@@ -279,7 +281,7 @@ func (d *decoder) decode(r io.Reader, allFrames, configOnly bool) error {
 				uninterlace(m)
 			}
 
-			if allFrames || len(d.image) == 0 {
+			if keepAllFrames || len(d.image) == 0 {
 				d.image = append(d.image, m)
 				d.delay = append(d.delay, d.delayTime)
 				d.disposal = append(d.disposal, d.disposalMethod)
@@ -528,7 +530,7 @@ type GIF struct {
 // and timing information.
 func DecodeAll(r io.Reader) (*GIF, error) {
 	var d decoder
-	if err := d.decode(r, true, false); err != nil {
+	if err := d.decode(r, false, true); err != nil {
 		return nil, err
 	}
 	gif := &GIF{
@@ -550,7 +552,7 @@ func DecodeAll(r io.Reader) (*GIF, error) {
 // without decoding the entire image.
 func DecodeConfig(r io.Reader) (image.Config, error) {
 	var d decoder
-	if err := d.decode(r, false, true); err != nil {
+	if err := d.decode(r, true, false); err != nil {
 		return image.Config{}, err
 	}
 	return image.Config{
