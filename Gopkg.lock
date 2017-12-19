@@ -26,10 +26,10 @@
   revision = "709fab3d192d7c62f86043caff1e7e3fb0f42bd8"
 
 [[projects]]
+  branch = "master"
   name = "github.com/soniakeys/quant"
-  packages = [".","mean"]
-  revision = "f70d7704be6abeebac2770a2a166b2def14cbf38"
-  version = "v0.2"
+  packages = [".","internal","mean"]
+  revision = "fcd131fb73007fd2babb13de66e04e7849567a16"
 
 [[projects]]
   branch = "master"
@@ -40,6 +40,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9de6e08bbe387e63de7d17d70c74ed8a758204e86fc1dd6ce0588727484c8c10"
+  inputs-digest = "86fd9c9c5106d9f49c02d05be6a2a5e2bfbb884fac2eecac2719f91f87bb6ae9"
   solver-name = "gps-cdcl"
   solver-version = 1
