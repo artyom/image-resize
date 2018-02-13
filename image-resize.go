@@ -191,7 +191,7 @@ saveOutput:
 	case ".bmp":
 		err = bmp.Encode(of, outImg)
 	default:
-		err = jpeg.Encode(of, outImg, &jpeg.Options{par.JpegQuality})
+		err = jpeg.Encode(of, outImg, &jpeg.Options{Quality: par.JpegQuality})
 	}
 	if err != nil {
 		return err
