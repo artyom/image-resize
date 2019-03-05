@@ -72,7 +72,7 @@ func do(par params) error {
 		return err
 	}
 	if cfg.Width*cfg.Height > pixelLimit {
-		return fmt.Errorf("image dimensions %dx%d exceeds limit", cfg.Width, cfg.Height)
+		return fmt.Errorf("image dimensions %d×%d exceeds limit", cfg.Width, cfg.Height)
 	}
 	width, height, err := tr.newDimensions(cfg.Width, cfg.Height)
 	if err != nil {
