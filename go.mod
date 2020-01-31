@@ -1,5 +1,7 @@
 module github.com/artyom/image-resize
 
+go 1.13
+
 require (
 	github.com/artyom/autoflags v1.1.1
 	github.com/bamiaux/rez v0.0.0-20170731184118-29f4463c688b
