@@ -325,14 +325,20 @@ func useExifOrientation(ed exifData) (rotatefunc func(image.Image) image.Image, 
 			return rotate90ccw, true
 		case 8: // 90ºCW
 			return rotate90cw, true
+		case 4: // vertical flip
+			return flipVertical, true
+		case 2: // horizontal flip
+			return flipHorizontal, true
 		}
 	}
 	return
 }
 
-func rotate90ccw(src image.Image) image.Image { return rotate(src, gift.Rotate270()) }
-func rotate90cw(src image.Image) image.Image  { return rotate(src, gift.Rotate90()) }
-func rotate180(src image.Image) image.Image   { return rotate(src, gift.Rotate180()) }
+func flipHorizontal(src image.Image) image.Image { return rotate(src, gift.FlipHorizontal()) }
+func flipVertical(src image.Image) image.Image   { return rotate(src, gift.FlipVertical()) }
+func rotate90ccw(src image.Image) image.Image    { return rotate(src, gift.Rotate270()) }
+func rotate90cw(src image.Image) image.Image     { return rotate(src, gift.Rotate90()) }
+func rotate180(src image.Image) image.Image      { return rotate(src, gift.Rotate180()) }
 
 func rotate(src image.Image, filter gift.Filter) image.Image {
 	g := gift.New(filter)
