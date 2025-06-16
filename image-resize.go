@@ -11,7 +11,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,7 +89,7 @@ func do(par params) error {
 				if p := recover(); p != nil {
 					fmt.Fprintln(os.Stderr, "exif decode failed")
 				}
-				io.Copy(ioutil.Discard, prd)
+				io.Copy(io.Discard, prd)
 			}()
 			data, err := exif.Decode(prd)
 			exifChan <- exifData{data, err}
